@@ -21,36 +21,30 @@
 %% 2.1 -------------------------------------------------------------------
 
 lossyNetworkStart() ->
-  % Wait to be sent the address of the client and the address
-  % of the server that I will be monitoring traffic between.
   receive
     {Client, Server} -> lossyNetwork(Client, Server)
   end.
 
 lossyNetwork(Client, Server) ->
   receive
-    {Client, TCP} -> faultyLink(Client, Client, Server, TCP, 50);
+    {Client, TCP} -> case rand:uniform(2) - 1 of
+                       0 -> debug(Client, Client, TCP, true);
+                       1 -> Server ! {self(), TCP}, debug(Client, Client, TCP, false)
+                     end;
     {Server, TCP} -> Client ! {self(), TCP}, debug(Client, Server, TCP, false)
   end,
   lossyNetwork(Client, Server).
 
-faultyLink(Client, Sender, Target, TCP, Prob) ->
-  R = rand:uniform(100),
-  if
-    R =< Prob -> debug(Client, Sender, TCP, true);
-    true -> Target ! {self(), TCP}, debug(Client, Sender, TCP, false)
-  end.
-
-debug(Client, P, TCP, Dropped) ->
+debug(Client, P, TCP, Lossed) ->
   case P == Client of
-    true -> io:fwrite("~s> {Client, ~p}~n", [arrow(Dropped), TCP]);
-    false -> io:fwrite("<~s {Server, ~p)~n", [arrow(Dropped), TCP])
+    true -> io:fwrite("~s {Client, ~p}~n", [arrow(Lossed), TCP]);
+    false -> io:fwrite("<--- {Server, ~p)~n", [TCP])
   end.
 
-arrow(Dropped) ->
-  if
-    Dropped == true -> "~~~";
-    true -> "---"
+arrow(Lossed) ->
+  case Lossed of
+    true -> "-> X";
+    false -> "--->"
   end.
 
 %% 2.2 -------------------------------------------------------------------
