@@ -1,6 +1,12 @@
+-module(test).
+
+-import(taskOne, [serverStart/0, clientStart/2]).
+
+-export([starter/0]).
+
 starter() ->
-  Server = spawn(model, serverStart, []),
-  _Client1 = spawn(model, clientStart,
+  Server = spawn(taskOne, serverStart, []),
+  _Client1 = spawn(taskOne, clientStart,
     [Server, "The quick brown fox jumped over the lazy dog."]),
-  _Client2 = spawn(model, clientStart,
+  _Client2 = spawn(taskOne, clientStart,
     [Server, "Contrary to popular belief, Lorem Ipsum is not simply random text."]).

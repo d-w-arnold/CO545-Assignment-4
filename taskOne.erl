@@ -17,7 +17,7 @@
 %%-compile(export_all).
 
 %% Run on CLI:
-%% c(test), c(taskOne), c(monitor), c(server), taskOne:testOne().
+%% c(monitor), c(server), c(test), c(taskOne), taskOne:testOne().
 
 %% 1.1 -------------------------------------------------------------------
 
@@ -63,7 +63,25 @@ sendMsg(Server, S, C, [Char | Rest], Candidate) ->
 
 %% 1.3 -------------------------------------------------------------------
 
-% The monitor is acting like a client and a server, if it receives a message from the client, it forwards it to the server, if it receives one from the server it forwards it to the client
+%% tcpMonitorStart/0 starts off by waiting for a tuple consisting of
+%% the address of the client and the address of the server that we'll be monitoring traffic between.
+
+%% When the tuple consisting of the two addresses is received,
+%% the function tcpMonitor/2 is called with the client and server addresses as parameters.
+
+%% tcpMonitor/2 is waiting to receive an ipPacket either from the client or from the server.
+
+%% If tcpMonitor/2 receives an ipPacket from the client,
+%% it forwards the tcpPacket to the server,
+%% and calls the debug/3 function with parameters: client address, client address, and the tcpPacket.
+
+%% If tcpMonitor/2 receives an ipPacket from the server,
+%% it forwards the tcpPacket to the client,
+%% and calls the debug/3 function with parameters: client address, server address, and the tcpPacket.
+
+%% Each time debug/3 function is called in one of the above ways,
+%% using the io:fwrite/2 function, a line is written to the standard output so we can see
+%% the contents of each ipPacket being sent between client and server.
 
 %% 1.4 -------------------------------------------------------------------
 

@@ -16,7 +16,7 @@
 %%-compile(export_all).
 
 %% Run on CLI:
-%% c(taskOne), c(taskTwo), c(monitor), c(server), taskTwo:testTwo().
+%% c(monitor), c(server), c(taskOne), c(taskTwo), taskTwo:testTwo().
 
 %% 2.1 -------------------------------------------------------------------
 
@@ -92,6 +92,5 @@ sendMessage(Server, ServerSeq, ClientSeq, [Char | Rest], Candidate) ->
 testTwo() ->
   Server = spawn(taskOne, serverStart, []),
   Monitor = spawn(fun() -> lossyNetworkStart() end),
-  Client = spawn(?MODULE, clientStartRobust,
-    [Monitor, "A small piece of text"]),
+  Client = spawn(?MODULE, clientStartRobust, [Monitor, "A small piece of text"]),
   Monitor ! {Client, Server}.
