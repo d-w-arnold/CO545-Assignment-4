@@ -49,39 +49,40 @@ arrow(Lossed) ->
 
 %% 2.2 -------------------------------------------------------------------
 
-clientStartRobust(Server, Message) ->
+timeout() -> 2000.
+
+clientStartRobust(Server, Msg) ->
   Server ! {self(), {syn, 0, 0}},
   receive
-    {Server, {synack, ServerSeq, ClientSeq}} ->
-      NewServerSeq = ServerSeq + 1,
-      Server ! {self(), {ack, ClientSeq, NewServerSeq}},
-
-      sendMessage(Server, NewServerSeq, ClientSeq, Message)
+    {Server, {synack, S, C}} ->
+      Server ! {self(), {ack, C, S + 1}},
+      sendMsg(Server, S + 1, C, Msg)
   after
-    2000 -> clientStartRobust(Server, Message)
+    timeout() -> clientStartRobust(Server, Msg)
   end.
 
-sendMessage(Server, ServerSeq, ClientSeq, Message) -> sendMessage(Server, ServerSeq, ClientSeq, Message, "").
+sendMsg(Server, S, C, Msg) -> sendMsg(Server, S, C, Msg, "").
 
-sendMessage(Server, ServerSeq, ClientSeq, "", "") ->
-  Server ! {self(), {fin, ClientSeq, ServerSeq}},
+sendMsg(Server, S, C, "", "") ->
+  Server ! {self(), {fin, C, S}},
   receive
-    {Server, {ack, ServerSeq, ClientSeq}} -> io:format("Client done.~n", [])
+    {Server, {ack, S, C}} -> io:format("Client done.~n", [])
   after
-    2000 -> sendMessage(Server, ServerSeq, ClientSeq, "", "")
-  end
-;
-sendMessage(Server, ServerSeq, ClientSeq, Message, Candidate) when (length(Candidate) == 7) orelse (length(Message) == 0) ->
-  Server ! {self(), {ack, ClientSeq, ServerSeq, Candidate}},
+    timeout() -> sendMsg(Server, S, C, "", "")
+  end;
+
+sendMsg(Server, S, C, Msg, Candidate)
+  when (length(Candidate) == 7) orelse (length(Msg) == 0) ->
+  Server ! {self(), {ack, C, S, Candidate}},
   receive
-    {Server, {ack, ServerSeq, NewClientSeq}} ->
-      sendMessage(Server, ServerSeq, NewClientSeq, Message, "")
+    {Server, {ack, S, NewC}} ->
+      sendMsg(Server, S, NewC, Msg, "")
   after
-    2000 -> sendMessage(Server, ServerSeq, ClientSeq, Message, Candidate)
-  end
-;
-sendMessage(Server, ServerSeq, ClientSeq, [Char | Rest], Candidate) ->
-  sendMessage(Server, ServerSeq, ClientSeq, Rest, Candidate ++ [Char]).
+    timeout() -> sendMsg(Server, S, C, Msg, Candidate)
+  end;
+
+sendMsg(Server, S, C, [Char | Rest], Candidate) ->
+  sendMsg(Server, S, C, Rest, Candidate ++ [Char]).
 
 testTwo() ->
   Server = spawn(taskOne, serverStart, []),
