@@ -87,6 +87,6 @@ sendMsg(Server, S, C, [Char | Rest], Candidate) ->
 
 testOne() ->
   Monitor = spawn(monitor, tcpMonitorStart, []),
-  Client = spawn(?MODULE, clientStart, [Monitor, "A small piece of text"]),
+  Client = spawn(?MODULE, clientStart, [Monitor, "Small piece of text"]),
   Server = spawn(?MODULE, serverStart, []),
   Monitor ! {Client, Server}.
