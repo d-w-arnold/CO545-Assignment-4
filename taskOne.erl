@@ -7,17 +7,14 @@
 -module(taskOne).
 -author("David").
 
--import(server, [serverEstablished/5]).
 -import(monitor, [tcpMonitorStart/0]).
+-import(server, [serverEstablished/5]).
 
 %% API
 -export([
   serverStart/0, clientStart/2, testOne/0
 ]).
 %%-compile(export_all).
-
-%% Run on CLI:
-%% c(monitor), c(server), c(test), c(taskOne), taskOne:testOne().
 
 %% 1.1 -------------------------------------------------------------------
 
@@ -39,8 +36,9 @@ clientStart(Server, Msg) ->
   Server ! {self(), {syn, 0, 0}},
   receive
     {Server, {synack, S, C}} ->
-      Server ! {self(), {ack, C, S + 1}},
-      sendMsg(Server, S + 1, C, Msg)
+      NewS = S + 1,
+      Server ! {self(), {ack, C, NewS}},
+      sendMsg(Server, NewS, C, Msg)
   end.
 
 sendMsg(Server, S, C, Msg) -> sendMsg(Server, S, C, Msg, "").
@@ -48,18 +46,18 @@ sendMsg(Server, S, C, Msg) -> sendMsg(Server, S, C, Msg, "").
 sendMsg(Server, S, C, "", "") ->
   Server ! {self(), {fin, C, S}},
   receive
-    {Server, {ack, S, C}} -> io:format("Client done.~n", [])
+    {Server, {ack, S, C}} -> io:format("Client done.~n")
   end;
 
-sendMsg(Server, S, C, Msg, Candidate) when (length(Candidate) == 7) orelse (length(Msg) == 0) ->
-  Server ! {self(), {ack, C, S, Candidate}},
+sendMsg(Server, S, C, Msg, MsgToSend) when (length(MsgToSend) == 7) orelse (length(Msg) == 0) ->
+  Server ! {self(), {ack, C, S, MsgToSend}},
   receive
     {Server, {ack, S, NewC}} ->
       sendMsg(Server, S, NewC, Msg, "")
   end;
 
-sendMsg(Server, S, C, [Char | Rest], Candidate) ->
-  sendMsg(Server, S, C, Rest, Candidate ++ [Char]).
+sendMsg(Server, S, C, [Char | Rest], MsgToSend) ->
+  sendMsg(Server, S, C, Rest, MsgToSend ++ [Char]).
 
 %% 1.3 -------------------------------------------------------------------
 
@@ -85,6 +83,7 @@ sendMsg(Server, S, C, [Char | Rest], Candidate) ->
 
 %% 1.4 -------------------------------------------------------------------
 
+%% Run on CLI: c(monitor), c(server), c(test), c(taskOne), taskOne:testOne().
 testOne() ->
   Monitor = spawn(monitor, tcpMonitorStart, []),
   Client = spawn(?MODULE, clientStart, [Monitor, "Small piece of text"]),
