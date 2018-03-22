@@ -25,8 +25,7 @@ serverStart(S) ->
     {Client, {syn, C, _}} ->
       Client ! {self(), {synack, S, C + 1}},
       receive
-        {Client, {ack, NewC, NewS}} ->
-          serverStart(serverEstablished(Client, NewS, NewC, "", 0))
+        {Client, {ack, NewC, NewS}} -> serverStart(serverEstablished(Client, NewS, NewC, "", 0))
       end
   end.
 
@@ -36,9 +35,8 @@ clientStart(Server, Msg) ->
   Server ! {self(), {syn, 0, 0}},
   receive
     {Server, {synack, S, C}} ->
-      NewS = S + 1,
-      Server ! {self(), {ack, C, NewS}},
-      sendMsg(Server, NewS, C, Msg)
+      Server ! {self(), {ack, C, S + 1}},
+      sendMsg(Server, S + 1, C, Msg)
   end.
 
 sendMsg(Server, S, C, Msg) -> sendMsg(Server, S, C, Msg, "").
@@ -48,16 +46,12 @@ sendMsg(Server, S, C, "", "") ->
   receive
     {Server, {ack, S, C}} -> io:format("Client done.~n")
   end;
-
-sendMsg(Server, S, C, Msg, MsgToSend) when (length(MsgToSend) == 7) orelse (length(Msg) == 0) ->
-  Server ! {self(), {ack, C, S, MsgToSend}},
+sendMsg(Server, S, C, Msg, Data) when (length(Data) == 7) orelse (length(Msg) == 0) ->
+  Server ! {self(), {ack, C, S, Data}},
   receive
-    {Server, {ack, S, NewC}} ->
-      sendMsg(Server, S, NewC, Msg, "")
+    {Server, {ack, S, NewC}} -> sendMsg(Server, S, NewC, Msg, "")
   end;
-
-sendMsg(Server, S, C, [Char | Rest], MsgToSend) ->
-  sendMsg(Server, S, C, Rest, MsgToSend ++ [Char]).
+sendMsg(Server, S, C, [Char | Rest], Data) -> sendMsg(Server, S, C, Rest, Data ++ [Char]).
 
 %% 1.3 -------------------------------------------------------------------
 

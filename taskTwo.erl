@@ -54,38 +54,35 @@ clientStartRobust(Server, Msg) ->
   Server ! {self(), {syn, 0, 0}},
   receive
     {Server, {synack, S, C}} ->
-      NewS = S + 1,
-      Server ! {self(), {ack, C, NewS}},
-      case sendMsg(Server, NewS, C, Msg) of
-        success -> io:fwrite("Client done.~n")
+      Server ! {self(), {ack, C, S + 1}},
+      case sendMsg(Server, S + 1, C, Msg) of
+        complete -> io:fwrite("Client done.~n")
       end
   after
     ?Timeout -> clientStartRobust(Server, Msg)
   end.
 
-sendMsg(Server, S, C, Msg) -> sendMsg(Server, S, C, Msg, "", false).
+sendMsg(Server, S, C, Msg) -> sendMsg(Server, S, C, Msg, "", fail).
 
-sendMsg(Server, S, C, "", "", HandshakeComplete) ->
+sendMsg(Server, S, C, "", "", Handshake) ->
   Server ! {self(), {fin, C, S}},
   receive
-    {Server, {ack, S, C}} -> success
+    {Server, {ack, S, C}} -> complete
   after
-    ?Timeout -> sendMsg(Server, S, C, "", "", HandshakeComplete)
+    ?Timeout -> sendMsg(Server, S, C, "", "", Handshake)
   end;
-sendMsg(Server, S, C, Msg, MsgToSend, HandshakeComplete) when (length(MsgToSend) == 7) orelse (length(Msg) == 0) ->
-  Server ! {self(), {ack, C, S, MsgToSend}},
+sendMsg(Server, S, C, Msg, Data, Handshake) when (length(Data) == 7) orelse (length(Msg) == 0) ->
+  Server ! {self(), {ack, C, S, Data}},
   receive
-    {Server, {ack, S, NewC}} ->
-      sendMsg(Server, S, NewC, Msg, "", true)
+    {Server, {ack, S, NewC}} -> sendMsg(Server, S, NewC, Msg, "", success)
   after
     ?Timeout ->
-      case HandshakeComplete of
-        false -> Server ! {self(), {ack, C, S}}, sendMsg(Server, S, C, Msg, MsgToSend, HandshakeComplete);
-        true -> sendMsg(Server, S, C, Msg, MsgToSend, HandshakeComplete)
+      case Handshake of
+        fail -> Server ! {self(), {ack, C, S}}, sendMsg(Server, S, C, Msg, Data, Handshake);
+        success -> sendMsg(Server, S, C, Msg, Data, Handshake)
       end
   end;
-sendMsg(Server, S, C, [Char | Rest], MsgToSend, HandshakeComplete) ->
-  sendMsg(Server, S, C, Rest, MsgToSend ++ [Char], HandshakeComplete).
+sendMsg(Server, S, C, [Char | Rest], Data, Handshake) -> sendMsg(Server, S, C, Rest, Data ++ [Char], Handshake).
 
 %% Run on CLI: c(monitor), c(server), c(taskOne), c(taskTwo), taskTwo:testTwo().
 testTwo() ->
