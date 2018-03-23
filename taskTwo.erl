@@ -39,12 +39,12 @@ communication(Client, Server) ->
 debug(Client, P, TCP, Result) ->
   case P == Client of
     true -> io:fwrite("~s {Client, ~p}~n", [arrow(Result), TCP]);
-    false -> io:fwrite("<--- {Server, ~p)~n", [TCP])
+    false -> io:fwrite("<--- {Server, ~p}~n", [TCP])
   end.
 
 arrow(Result) ->
   case Result of
-    fail -> "-->X";
+    fail -> "-> X";
     success -> "--->"
   end.
 
@@ -53,38 +53,40 @@ arrow(Result) ->
 clientStartRobust(Server, Msg) ->
   Server ! {self(), {syn, 0, 0}},
   receive
-    {Server, {synack, S, C}} ->
-      Server ! {self(), {ack, C, S + 1}},
-      case sendMsg(Server, S + 1, C, Msg) of
+    {Server, {synack, S, C}} -> Server ! {self(), {ack, C, S + 1}},
+      case dataTransmission(Server, S + 1, C, Msg) of
         complete -> io:fwrite("Client done.~n")
       end
   after
     ?Timeout -> clientStartRobust(Server, Msg)
   end.
 
-sendMsg(Server, S, C, Msg) -> sendMsg(Server, S, C, Msg, "", fail).
+dataTransmission(Server, S, C, Msg) -> dataTransmission(Server, S, C, Msg, "", fail).
 
-sendMsg(Server, S, C, "", "", Handshake) ->
+dataTransmission(Server, S, C, "", "", Handshake) ->
   Server ! {self(), {fin, C, S}},
   receive
     {Server, {ack, S, C}} -> complete
   after
-    ?Timeout -> sendMsg(Server, S, C, "", "", Handshake)
+    ?Timeout -> dataTransmission(Server, S, C, "", "", Handshake)
   end;
-sendMsg(Server, S, C, Msg, Data, Handshake) when (length(Data) == 7) orelse (length(Msg) == 0) ->
+dataTransmission(Server, S, C, Msg, Data, Handshake) when (length(Data) == 7) orelse (length(Msg) == 0) ->
   Server ! {self(), {ack, C, S, Data}},
   receive
-    {Server, {ack, S, NewC}} -> sendMsg(Server, S, NewC, Msg, "", success)
+    {Server, {ack, S, NewC}} -> dataTransmission(Server, S, NewC, Msg, "", success)
   after
     ?Timeout ->
       case Handshake of
-        fail -> Server ! {self(), {ack, C, S}}, sendMsg(Server, S, C, Msg, Data, Handshake);
-        success -> sendMsg(Server, S, C, Msg, Data, Handshake)
+        fail -> Server ! {self(), {ack, C, S}}, dataTransmission(Server, S, C, Msg, Data, Handshake);
+        success -> dataTransmission(Server, S, C, Msg, Data, Handshake)
       end
   end;
-sendMsg(Server, S, C, [Char | Rest], Data, Handshake) -> sendMsg(Server, S, C, Rest, Data ++ [Char], Handshake).
+dataTransmission(Server, S, C, [Char | Rest], Data, Handshake) ->
+  dataTransmission(Server, S, C, Rest, Data ++ [Char], Handshake).
 
-%% Run on CLI: c(monitor), c(server), c(taskOne), c(taskTwo), taskTwo:testTwo().
+%% Run on CLI, in the Erlang shell:
+%% c(monitor), c(server), c(taskOne), c(taskTwo), taskTwo:testTwo().
+
 testTwo() ->
   Monitor = spawn(?MODULE, lossyNetwork, []),
   Client = spawn(?MODULE, clientStartRobust, [Monitor, "Small piece of text"]),

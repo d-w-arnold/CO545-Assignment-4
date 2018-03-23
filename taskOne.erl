@@ -22,8 +22,7 @@ serverStart() -> serverStart(0).
 
 serverStart(S) ->
   receive
-    {Client, {syn, C, _}} ->
-      Client ! {self(), {synack, S, C + 1}},
+    {Client, {syn, C, _}} -> Client ! {self(), {synack, S, C + 1}},
       receive
         {Client, {ack, NewC, NewS}} -> serverStart(serverEstablished(Client, NewS, NewC, "", 0))
       end
@@ -34,24 +33,22 @@ serverStart(S) ->
 clientStart(Server, Msg) ->
   Server ! {self(), {syn, 0, 0}},
   receive
-    {Server, {synack, S, C}} ->
-      Server ! {self(), {ack, C, S + 1}},
-      sendMsg(Server, S + 1, C, Msg)
+    {Server, {synack, S, C}} -> Server ! {self(), {ack, C, S + 1}}, dataTransmission(Server, S + 1, C, Msg)
   end.
 
-sendMsg(Server, S, C, Msg) -> sendMsg(Server, S, C, Msg, "").
+dataTransmission(Server, S, C, Msg) -> dataTransmission(Server, S, C, Msg, "").
 
-sendMsg(Server, S, C, "", "") ->
+dataTransmission(Server, S, C, "", "") ->
   Server ! {self(), {fin, C, S}},
   receive
     {Server, {ack, S, C}} -> io:format("Client done.~n")
   end;
-sendMsg(Server, S, C, Msg, Data) when (length(Data) == 7) orelse (length(Msg) == 0) ->
+dataTransmission(Server, S, C, Msg, Data) when (length(Data) == 7) orelse (length(Msg) == 0) ->
   Server ! {self(), {ack, C, S, Data}},
   receive
-    {Server, {ack, S, NewC}} -> sendMsg(Server, S, NewC, Msg, "")
+    {Server, {ack, S, NewC}} -> dataTransmission(Server, S, NewC, Msg, "")
   end;
-sendMsg(Server, S, C, [Char | Rest], Data) -> sendMsg(Server, S, C, Rest, Data ++ [Char]).
+dataTransmission(Server, S, C, [Char | Rest], Data) -> dataTransmission(Server, S, C, Rest, Data ++ [Char]).
 
 %% 1.3 -------------------------------------------------------------------
 
@@ -77,7 +74,9 @@ sendMsg(Server, S, C, [Char | Rest], Data) -> sendMsg(Server, S, C, Rest, Data +
 
 %% 1.4 -------------------------------------------------------------------
 
-%% Run on CLI: c(monitor), c(server), c(test), c(taskOne), taskOne:testOne().
+%% Run on CLI, in the Erlang shell:
+%% c(monitor), c(server), c(taskOne), taskOne:testOne().
+
 testOne() ->
   Monitor = spawn(monitor, tcpMonitorStart, []),
   Client = spawn(?MODULE, clientStart, [Monitor, "Small piece of text"]),
