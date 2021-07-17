@@ -1,4 +1,4 @@
-# CO545-Assignment-4
+# CO545 Assignment 4
 
 Sending/Receiving of simple TCP packets in Erlang.
 
